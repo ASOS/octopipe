@@ -26,11 +26,6 @@ $ octopipe create
 ```
 **_See below for more information on the yaml schema_**
 
-Write configuration data to the server:
-```sh
-$ octopipe put
-```
-
 Find and replace Octopus Deploy formatted variables (`#{variablevalue}`) in deploy script files:
 
 - All files in folder `scripts`, replacing values for the environment named `DevTest`:
@@ -47,6 +42,16 @@ $ octopipe sub in -f deploystep1.ps1 scripts/ Pre-Production
 $ octopipe sub in -c scripts/ Production
 ```
 
+Before subbing, octopipe creates a backup of each file in the same location with `.octopipe` appended to the name.  After making changes to your scripts, use your favourite merge tool to merge in your changes and bring back the unsubbed variables
+
+- Clear out .octopipe files in folder `scripts` after merging
+```sh
+$ octopipe sub clear scripts/
+```
+Write configuration data to the server:
+```sh
+$ octopipe put
+```
 ### Yaml schema
 ```Yaml
 project:
