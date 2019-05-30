@@ -30,12 +30,12 @@ func doOctopusRequest(body []byte, uri string, method string) (responsebody []by
 
 		defer response.Body.Close()
 
-		responsebody, err = ioutil.ReadAll(response.Body)
+		responsebody, err := ioutil.ReadAll(response.Body)
 		if err != nil {
 			logAndExitf("Error reading response body of GET to %s:\n%s", uri, err.Error())
 		}
 
-		return body, response.StatusCode
+		return responsebody, response.StatusCode
 
 	} else if method == "PUT" || method == "POST" {
 		httpreq, _ := http.NewRequest(method, uri, bytes.NewBuffer(body))
