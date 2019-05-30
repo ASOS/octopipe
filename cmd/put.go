@@ -115,12 +115,6 @@ octopipe put
 
 		newv := []octopusVariable{}
 
-		for _, rv := range v.Variables {
-			if rv.IsSensitive {
-				newv = append(newv, rv)
-			}
-		}
-
 		for _, sv := range op.Variables {
 			if len(sv.Values) != 0 {
 				for i, svv := range sv.Values {
