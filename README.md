@@ -59,7 +59,7 @@ project:
   name: Octopipe.Test.Project # the name of the project (will create new if the slug does not resolve)
   description: Project for testing the Octopipe tool # project description
   group: My Octopus Project Group # the Octopus Project Group this project will belong to
-  lifecycle: Default.Lifecycle # the OCtopus Lifecycle for the Deployment Process
+  lifecycle: Default.Lifecycle # the Octopus Lifecycle for the Deployment Process
 
 variables:
 - name: processName
@@ -73,13 +73,13 @@ variables:
 
 - name: deployAccount
   value: azureserviceprincipal-azuresuba
-  type: AzureAccount # types supported are "AzureAccount", "AWSAccount", "Certificate", String" (default)
+  type: AzureAccount # types supported are AzureAccount, AWSAccount, Certificate, String (default)
   description: Account used for deployment to the subscription # variable description
 
 process:
   steps:
   - name: Init
-    type: PowerShell # types supported are "PowerShell", "Bash", "CSharp", "FSharp"
+    type: PowerShell # types supported are PowerShell, Bash, CSharp, FSharp
     file: scripts/init.ps1 # file location relative to octopipe.yaml
     
   - name: Deploy Kubernetes
