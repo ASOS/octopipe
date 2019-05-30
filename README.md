@@ -61,7 +61,7 @@ variables:
 
 - name: environmentName
   values: # 'values' for a variable with environment scopings (separated by comma), 'default' being an optional unscoped value
-    PlatformDev,PlatformTest: devtest
+    DevTest,Pre-Production: devtest
     Production: pd
     default: env
 
@@ -92,4 +92,4 @@ Apache 2
 
 
    [Octopus Deploy]: <https://octopus.com>
-   [Cobra CLI]: <[https://github.com/spf13/cobra>
+   [Cobra CLI]: <https://github.com/spf13/cobra>
