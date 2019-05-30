@@ -85,11 +85,9 @@ process:
  - Add support for external secrets storage (Hashicorp Vault, Azure KeyVault)
  - Add support for script modules within the deployment process
 
-License
-----
-
-Apache 2
+[License]
 
 
    [Octopus Deploy]: <https://octopus.com>
    [Cobra CLI]: <https://github.com/spf13/cobra>
+   [License]: <https://github.com/ASOS/octopipe/blob/master/LICENSE>
