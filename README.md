@@ -67,7 +67,7 @@ variables:
 
 - name: deployAccount
   value: azureserviceprincipal-azuresuba
-  type: AzureAccount # types supported are "AzureAccount", "AWSAccount", "Certificate", "Sensitive", "String" (default)
+  type: AzureAccount # types supported are "AzureAccount", "AWSAccount", "Certificate", String" (default)
   description: Account used for deployment to the subscription # variable description
 
 process:
