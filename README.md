@@ -21,8 +21,14 @@ $ export OCTOPUS_API_KEY=API-1A2B3C4D5E6F7G8H9I0J
 $ octopipe --help
 ```
 Create an octopipe.yaml file:
+
+- From scratch:
 ```sh
 $ octopipe create
+```
+- From an existing Octopus project:
+```sh
+$ octopipe create -i My.Octopus.Project
 ```
 **_See below for more information on the yaml schema_**
 
@@ -31,21 +37,21 @@ Find and replace Octopus Deploy formatted variables (`#{variablevalue}`) in depl
 - All files in folder `scripts`, replacing values for the environment named `DevTest`:
     
 ```sh
-$ octopipe sub in scripts/ DevTest
+$ octopipe sub scripts/ DevTest
 ```
-- Specific file(s) in folder `scripts`, replacing values for the environment named `Pre-Production`
+- Specific file(s) in folder `scripts`, replacing values for the environment named `Pre-Production`:
 ```sh
-$ octopipe sub in -f deploystep1.ps1 scripts/ Pre-Production
-$ octopipe sub in -f deploystep1.ps1,deploystep2.sh scripts/ Pre-Production
+$ octopipe sub -f deploystep1.ps1 scripts/ Pre-Production
+$ octopipe sub -f deploystep1.ps1,deploystep2.sh scripts/ Pre-Production
 ```
-- Only check and report back for all files in folder `scripts`, those variables which have no matching values in **octopipe.yaml** for environment `Production`
+- Only check and report back for all files in folder `scripts`, those variables which have no matching values in **octopipe.yaml** for environment `Production`:
 ```sh
-$ octopipe sub in -c scripts/ Production
+$ octopipe sub -c scripts/ Production
 ```
 
 Before subbing, octopipe creates a backup of each file in the same location with `.octopipe` appended to the name.  After making changes to your scripts, use your favourite merge tool to merge in your changes and bring back the unsubbed variables
 
-- Clear out .octopipe files in folder `scripts` after merging
+Clear out .octopipe files in folder `scripts` after merging:
 ```sh
 $ octopipe sub clear scripts/
 ```
@@ -91,6 +97,7 @@ process:
  - Add support for external secrets storage (Hashicorp Vault, Azure KeyVault)
  - Add support for script modules within the deployment process
  - Add support for selecting the Worker Pool a deployment step will run against
+ - Add support for step sub-actions
 
 [License]
 
