@@ -4,10 +4,18 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
+	"net/http"
+	"os"
 	"strings"
 
 	"gopkg.in/yaml.v2"
 )
+
+var apiKey = os.Getenv("OCTOPUS_API_KEY")
+var uri = os.Getenv("OCTOPUS_URI")
+var client = http.Client{}
+var validVariableTypes = []string{"AzureAccount", "AWSAccount", "Certificate", "String"}
+var validScriptSyntaxTypes = []string{"PowerShell", "Bash", "CSharp", "FSharp"}
 
 type project struct {
 	Name         string `yaml:"name"`
@@ -48,10 +56,14 @@ type octopusLifecycle struct {
 	Name string `json:"Name"`
 }
 
+type octopusLifecycles []octopusLifecycle
+
 type octopusProjectGroup struct {
 	ID   string `json:"Id"`
 	Name string `json:"Name"`
 }
+
+type octopusProjectGroups []octopusProjectGroup
 
 type octopusProject struct {
 	ID                  string            `json:"Id"`
@@ -165,25 +177,34 @@ func (op *octopipe) importOctopipeFile() {
 	}
 }
 
-func (v *octopusVariableSetScopeValues) getEnvironmentID(names string) (environmentID map[string][]string, err error) {
-	tnames := strings.Split(names, ",")
-	emap := make(map[string][]string)
-	environments := make([]string, 0)
+func (v *octopusVariableSetScopeValues) getEnvironment(names string, ID string) (environmentID map[string][]string, environmentName string, err error) {
+	if names != "" {
+		tnames := strings.Split(names, ",")
+		emap := make(map[string][]string)
+		environments := make([]string, 0)
 
-	for _, name := range tnames {
-		found := false
-		for _, env := range v.Environments {
-			if env.Name == name {
-				environments = append(environments, env.ID)
-				found = true
+		for _, name := range tnames {
+			found := false
+			for _, env := range v.Environments {
+				if env.Name == name {
+					environments = append(environments, env.ID)
+					found = true
+				}
 			}
-		}
 
-		if !found {
-			return nil, errors.New("Environment with name " + name + " not found")
+			if !found {
+				return nil, "", errors.New("Environment with name " + name + " not found")
+			}
+			emap["Environment"] = environments
+			return emap, "", nil
+		}
+	} else if ID != "" {
+		for _, env := range v.Environments {
+			if env.ID == ID {
+				return nil, env.Name, nil
+			}
 		}
 	}
 
-	emap["Environment"] = environments
-	return emap, nil
+	return nil, "", errors.New("No names or Ids to process")
 }

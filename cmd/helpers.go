@@ -102,18 +102,18 @@ func getProjectSlug(name string) (slug string) {
 	return string(slugged)
 }
 
-func getLifecycle(ls []octopusLifecycle, name string) (l octopusLifecycle, err error) {
+func getLifecycle(ls []octopusLifecycle, name string, ID string) (l octopusLifecycle, err error) {
 	for _, l := range ls {
-		if l.Name == name {
+		if l.Name == name || l.ID == ID {
 			return l, nil
 		}
 	}
 	return octopusLifecycle{}, errors.New("Lifecycle with name " + name + " not found")
 }
 
-func getProjectGroup(pgs []octopusProjectGroup, name string) (pg octopusProjectGroup, err error) {
+func getProjectGroup(pgs []octopusProjectGroup, name string, ID string) (pg octopusProjectGroup, err error) {
 	for _, pg := range pgs {
-		if pg.Name == name {
+		if pg.Name == name || pg.ID == ID {
 			return pg, nil
 		}
 	}

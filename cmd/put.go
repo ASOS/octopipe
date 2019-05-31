@@ -18,18 +18,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
 )
-
-var apiKey = os.Getenv("OCTOPUS_API_KEY")
-var uri = os.Getenv("OCTOPUS_URI")
-var client = http.Client{}
-var validVariableTypes = []string{"AzureAccount", "AWSAccount", "Certificate", "String"}
-var validScriptSyntaxTypes = []string{"PowerShell", "Bash", "CSharp", "FSharp"}
 
 // putCmd represents the put command
 var putCmd = &cobra.Command{
@@ -57,27 +49,18 @@ octopipe put
 		op.importOctopipeFile()
 
 		//Project
-		apg := make([]octopusProjectGroup, 0)
-		al := make([]octopusLifecycle, 0)
+		l := octopusLifecycles{}
+		g := octopusProjectGroups{}
 
-		pgresp, status := doOctopusRequest(nil, uri+"/api/projectgroups/all", "GET")
-		if status != 200 {
-			logAndExitf("Failed to fetch Octopus Project Groups:\n%s", string(pgresp))
-		}
-		json.Unmarshal(pgresp, &apg)
+		getOctopusData(&l, uri+"/api/lifecycles/all")
+		getOctopusData(&g, uri+"/api/projectgroups/all")
 
-		lresp, status := doOctopusRequest(nil, uri+"/api/lifecycles/all", "GET")
-		if status != 200 {
-			logAndExitf("Failed to fetch Octopus Lifecycles:\n%s", string(lresp))
-		}
-		json.Unmarshal(lresp, &al)
-
-		lifecycle, err := getLifecycle(al, op.Project.Lifecycle)
+		lifecycle, err := getLifecycle(l, op.Project.Lifecycle, "")
 		if err != nil {
 			logAndExitf(err.Error())
 		}
 
-		projectGroup, err := getProjectGroup(apg, op.Project.ProjectGroup)
+		projectGroup, err := getProjectGroup(g, op.Project.ProjectGroup, "")
 		if err != nil {
 			logAndExitf(err.Error())
 		}
@@ -110,8 +93,8 @@ octopipe put
 		}
 
 		// Variables
-		v := &octopusVariableSet{}
-		getOctopusData(v, uri+"/api/variables/"+p.VariableSetID)
+		v := octopusVariableSet{}
+		getOctopusData(&v, uri+"/api/variables/"+p.VariableSetID)
 
 		newv := []octopusVariable{}
 
@@ -133,7 +116,7 @@ octopipe put
 						}
 						newv = append(newv, tv)
 					} else {
-						envID, err := v.ScopeValues.getEnvironmentID(i)
+						envID, _, err := v.ScopeValues.getEnvironment(i, "")
 						if err != nil {
 							logAndExitf("Variable %s:\n%s", sv.Name, err.Error())
 						} else {
@@ -168,8 +151,8 @@ octopipe put
 		putOctopusData(v, uri+"/api/variables/"+p.VariableSetID)
 
 		// Deployment process
-		d := &octopusDeploymentProcess{}
-		getOctopusData(d, uri+"/api/deploymentprocesses/"+p.DeploymentProcessID)
+		d := octopusDeploymentProcess{}
+		getOctopusData(&d, uri+"/api/deploymentprocesses/"+p.DeploymentProcessID)
 
 		news := make([]octopusDeploymentStep, 0)
 
