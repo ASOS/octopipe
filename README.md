@@ -2,6 +2,8 @@
 
 Octopipe is a pipeline-as-code utility for [Octopus Deploy].  It supports writing project configuration data to Octopus before release creation as well as subbing out variables in deploy scripts for local debugging
 
+[![Build Status](https://dev.azure.com/asos/ASOS%20Core/_apis/build/status/ASOS.octopipe?branchName=master)](https://dev.azure.com/asos/ASOS%20Core/_build/latest?definitionId=1776&branchName=master)
+
 ### Build
 
 Octopipe is based on the [Cobra CLI] framework, all other dependencies ship with Go
