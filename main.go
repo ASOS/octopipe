@@ -14,7 +14,7 @@
 
 package main
 
-import "octopipe/cmd"
+import "github.com/ASOS/octopipe/cmd"
 
 func main() {
 	cmd.Execute()
