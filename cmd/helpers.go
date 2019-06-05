@@ -72,9 +72,9 @@ func verifyVariableType(svtype variable) (vtype string, err error) {
 
 	var errorstring string
 	for _, vvar := range validVariableTypes {
-		errorstring = errorstring + vvar + ","
+		errorstring = errorstring + vvar + ", "
 	}
-	errorstring = strings.TrimSuffix(errorstring, ",")
+	errorstring = strings.TrimSuffix(errorstring, ", ")
 	return "", errors.New("Variable type '" + svtype.Type + "' for variable '" + svtype.Name + "' is not valid. Valid types are " + errorstring)
 }
 
@@ -87,10 +87,40 @@ func verifySyntaxType(satype step) (atype string, err error) {
 
 	var errorstring string
 	for _, vsyn := range validScriptSyntaxTypes {
-		errorstring = errorstring + vsyn + ","
+		errorstring = errorstring + vsyn + ", "
 	}
-	errorstring = strings.TrimSuffix(errorstring, ",")
+	errorstring = strings.TrimSuffix(errorstring, ", ")
 	return "", errors.New("Script syntax type '" + satype.Type + "' for process step '" + satype.Name + "' is not valid. Syntax types are case sensitive. Valid types are " + errorstring)
+}
+
+func verifyTenancyType(tp project) (ap string, err error) {
+	for _, validType := range validTenancyTypes {
+		if validType == tp.Tenanted {
+			return tp.Tenanted, nil
+		}
+	}
+
+	var errorstring string
+	for _, vsyn := range validTenancyTypes {
+		errorstring = errorstring + vsyn + ", "
+	}
+	errorstring = strings.TrimSuffix(errorstring, ", ")
+	return "", errors.New("Tenancy type '" + tp.Tenanted + "' for project '" + tp.Name + "' is not valid.  Valid tenancy types are " + errorstring)
+}
+
+func verifyScopeType(sctype string) (vtype string, err error) {
+	for _, validType := range validScopeTypes {
+		if validType == sctype {
+			return sctype, nil
+		}
+	}
+
+	var errorstring string
+	for _, vsc := range validScopeTypes {
+		errorstring = errorstring + vsc + ", "
+	}
+	errorstring = strings.TrimSuffix(errorstring, ", ")
+	return "", errors.New("Scope type '" + sctype + "' is invalid.  Valid scope types are " + errorstring)
 }
 
 func getProjectSlug(name string) (slug string) {

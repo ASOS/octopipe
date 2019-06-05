@@ -37,16 +37,19 @@ Find and replace Octopus Deploy formatted variables (`#{variablevalue}`) in depl
 - All files in folder `scripts`, replacing values for the environment named `DevTest`:
     
 ```sh
-$ octopipe sub scripts/ DevTest
+$ octopipe sub scripts/ 'Environment=DevTest'
 ```
 - Specific file(s) in folder `scripts`, replacing values for the environment named `Pre-Production`:
 ```sh
-$ octopipe sub -f deploystep1.ps1 scripts/ Pre-Production
-$ octopipe sub -f deploystep1.ps1,deploystep2.sh scripts/ Pre-Production
+$ octopipe sub -f deploystep1.ps1 scripts/ 'Environment=Pre-Production'
+```
+- Specific file(s) in folder `scripts`, replacing values for the environment named `Pre-Production` and the machine named `deploynode01`:
+```sh
+$ octopipe sub -f deploystep1.ps1,deploystep2.sh scripts/ 'Environment=Pre-Production,Machine=deploynode01'
 ```
 - Only check and report back for all files in folder `scripts`, those variables which have no matching values in **octopipe.yaml** for environment `Production`:
 ```sh
-$ octopipe sub -c scripts/ Production
+$ octopipe sub -c scripts/ 'Environment=Production'
 ```
 
 Before subbing, octopipe creates a backup of each file in the same location with `.octopipe` appended to the name.  After making changes to your scripts, use your favourite merge tool to merge in your changes and bring back the unsubbed variables
@@ -60,32 +63,40 @@ Write project configuration data to the server:
 $ octopipe put
 ```
 ### Yaml schema
+
+**_For interoperability with the Octopus API, types are case sensitive_**
+
 ```Yaml
 project:
   name: Octopipe.Test.Project # the name of the project (will create new if the slug does not resolve)
   description: Project for testing the Octopipe tool # project description
   group: My Octopus Project Group # the Octopus Project Group this project will belong to
   lifecycle: Default.Lifecycle # the Octopus Lifecycle for the Deployment Process
+  tenanted: TenantedOrUntenanted # if not specified in octopipe.yaml, the default is Untenanted. Valid tenancy types are Tenanted, Untenanted, TenantedOrUntenanted
 
 variables:
 - name: processName
   value: kubelet # 'value' for a single variable value
 
 - name: environmentName
-  values: # 'values' for a variable with environment scopings (separated by comma), 'default' being an optional unscoped value
-    DevTest,Pre-Production: devtest
-    Production: pd
-    default: env
+  scopedValues: # 'scopedValues' for a variable with scopings
+    - value: devtest
+      Environment: DevTest,Pre-Production
+    - value: pd
+      Environment: Production
+      TenantTag: Azure Regions/West Europe # valid scope types are Environment, Machine, TenantTag, Channel, Action, Role
+      Role: web-server
+    - value: env # default unscoped value for the variable
 
 - name: deployAccount
-  value: azureserviceprincipal-azuresuba
-  type: AzureAccount # types supported are AzureAccount, AWSAccount, Certificate, String (default)
+  value: azureserviceprincipal-azuresub
+  type: AzureAccount # valid variable types are AzureAccount, AWSAccount, Certificate, String (default)
   description: Account used for deployment to the subscription # variable description
 
 process:
   steps:
   - name: Init
-    type: PowerShell # types supported are PowerShell, Bash, CSharp, FSharp
+    type: PowerShell # valid script types are PowerShell, Bash, CSharp, FSharp
     file: scripts/init.ps1 # file location relative to octopipe.yaml
     
   - name: Deploy Kubernetes

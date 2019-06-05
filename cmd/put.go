@@ -70,13 +70,22 @@ octopipe put
 		presp, status := doOctopusRequest(nil, uri+"/api/projects/"+slug, "GET")
 		json.Unmarshal(presp, &p)
 
+		tenancy := "Untenanted"
+		if op.Project.Tenanted != "" {
+			tenancy, err = verifyTenancyType(op.Project)
+			if err != nil {
+				logAndExitf(err.Error())
+			}
+		}
+
 		if status == 404 {
 
 			newp := &octopusProject{
-				Name:           op.Project.Name,
-				Description:    op.Project.Description,
-				LifecycleID:    lifecycle.ID,
-				ProjectGroupID: projectGroup.ID,
+				Name:                   op.Project.Name,
+				Description:            op.Project.Description,
+				TenantedDeploymentMode: tenancy,
+				LifecycleID:            lifecycle.ID,
+				ProjectGroupID:         projectGroup.ID,
 			}
 
 			postOctopusData(newp, uri+"/api/projects")
@@ -88,67 +97,12 @@ octopipe put
 			p.LifecycleID = lifecycle.ID
 			p.ProjectGroupID = projectGroup.ID
 			p.Description = op.Project.Description
+			p.TenantedDeploymentMode = tenancy
 
 			putOctopusData(p, uri+"/api/projects/"+p.ID)
+
+			fmt.Println("Put Project")
 		}
-
-		// Variables
-		v := octopusVariableSet{}
-		getOctopusData(&v, uri+"/api/variables/"+p.VariableSetID)
-
-		newv := []octopusVariable{}
-
-		for _, sv := range op.Variables {
-			if len(sv.Values) != 0 {
-				for i, svv := range sv.Values {
-					thistype, err := verifyVariableType(sv)
-					if err != nil {
-						logAndExitf(err.Error())
-					}
-					if i == "local" {
-						// do nothing
-					} else if i == "default" {
-						tv := octopusVariable{
-							Name:        sv.Name,
-							Value:       svv,
-							Type:        thistype,
-							Description: sv.Description,
-						}
-						newv = append(newv, tv)
-					} else {
-						envID, _, err := v.ScopeValues.getEnvironment(i, "")
-						if err != nil {
-							logAndExitf("Variable %s:\n%s", sv.Name, err.Error())
-						} else {
-							tv := octopusVariable{
-								Name:        sv.Name,
-								Value:       svv,
-								Scope:       envID,
-								Type:        thistype,
-								Description: sv.Description,
-							}
-							newv = append(newv, tv)
-						}
-					}
-				}
-			}
-			thistype, err := verifyVariableType(sv)
-			if err != nil {
-				logAndExitf(err.Error())
-			}
-			if sv.Value != "" {
-				tv := octopusVariable{
-					Name:        sv.Name,
-					Value:       sv.Value,
-					Type:        thistype,
-					Description: sv.Description,
-				}
-				newv = append(newv, tv)
-			}
-		}
-
-		v.Variables = newv
-		putOctopusData(v, uri+"/api/variables/"+p.VariableSetID)
 
 		// Deployment process
 		d := octopusDeploymentProcess{}
@@ -195,6 +149,74 @@ octopipe put
 
 		d.Steps = news
 		putOctopusData(d, uri+"/api/deploymentprocesses/"+p.DeploymentProcessID)
+		fmt.Println("Put Deployment Process")
+
+		// Variables
+		v := octopusVariableSet{}
+		getOctopusData(&v, uri+"/api/variables/"+p.VariableSetID)
+		ds := v.ScopeValues.makeScopeDataSet()
+
+		newv := []octopusVariable{}
+
+		for _, sv := range op.Variables {
+			if sv.ScopedValues != nil {
+				for _, svv := range sv.ScopedValues {
+					thistype, err := verifyVariableType(sv)
+					if err != nil {
+						logAndExitf(err.Error())
+					}
+					if len(svv) == 1 {
+						tv := octopusVariable{
+							Name:        sv.Name,
+							Value:       svv["value"],
+							Type:        thistype,
+							Description: sv.Description,
+						}
+						newv = append(newv, tv)
+					} else {
+						scopes := make(map[string][]string)
+						for it, svt := range svv {
+							if it != "value" {
+								stype, err := verifyScopeType(it)
+								if err != nil {
+									logAndExitf(err.Error())
+								}
+								scopeIDs, _, err := v.ScopeValues.getScope(ds, svt, nil, stype)
+								if err != nil {
+									logAndExitf(err.Error())
+								}
+								scopes[it] = scopeIDs
+							}
+						}
+						tv := octopusVariable{
+							Name:        sv.Name,
+							Value:       svv["value"],
+							Scope:       scopes,
+							Type:        thistype,
+							Description: sv.Description,
+						}
+						newv = append(newv, tv)
+					}
+				}
+			}
+			thistype, err := verifyVariableType(sv)
+			if err != nil {
+				logAndExitf(err.Error())
+			}
+			if sv.Value != "" {
+				tv := octopusVariable{
+					Name:        sv.Name,
+					Value:       sv.Value,
+					Type:        thistype,
+					Description: sv.Description,
+				}
+				newv = append(newv, tv)
+			}
+		}
+
+		v.Variables = newv
+		putOctopusData(v, uri+"/api/variables/"+p.VariableSetID)
+		fmt.Println("Put Variables")
 
 		// End
 		finish := time.Now()
