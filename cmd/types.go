@@ -16,20 +16,23 @@ var uri = os.Getenv("OCTOPUS_URI")
 var client = http.Client{}
 var validVariableTypes = []string{"AzureAccount", "AWSAccount", "Certificate", "String"}
 var validScriptSyntaxTypes = []string{"PowerShell", "Bash", "CSharp", "FSharp"}
+var validTenancyTypes = []string{"Tenanted", "Untenanted", "TenantedOrUntenanted"}
+var validScopeTypes = []string{"TenantTag", "Environment", "Machine", "Channel", "Action", "Role"}
 
 type project struct {
 	Name         string `yaml:"name"`
 	Description  string `yaml:"description"`
 	ProjectGroup string `yaml:"group"`
 	Lifecycle    string `yaml:"lifecycle"`
+	Tenanted     string `yaml:"tenanted"`
 }
 
 type variable struct {
-	Name        string            `yaml:"name"`
-	Value       string            `yaml:"value,omitempty"`
-	Values      map[string]string `yaml:"values,omitempty"`
-	Type        string            `yaml:"type,omitempty"`
-	Description string            `yaml:"description,omitempty"`
+	Name         string              `yaml:"name"`
+	Value        string              `yaml:"value,omitempty"`
+	ScopedValues []map[string]string `yaml:"scopedValues,omitempty"`
+	Type         string              `yaml:"type,omitempty"`
+	Description  string              `yaml:"description,omitempty"`
 }
 
 type step struct {
@@ -66,14 +69,15 @@ type octopusProjectGroup struct {
 type octopusProjectGroups []octopusProjectGroup
 
 type octopusProject struct {
-	ID                  string            `json:"Id"`
-	Name                string            `json:"Name"`
-	Description         string            `json:"Description"`
-	VariableSetID       string            `json:"VariableSetId"`
-	LifecycleID         string            `json:"LifecycleId"`
-	ProjectGroupID      string            `json:"ProjectGroupId"`
-	DeploymentProcessID string            `json:"DeploymentProcessId"`
-	Links               map[string]string `json:"Links"`
+	ID                     string            `json:"Id"`
+	Name                   string            `json:"Name"`
+	Description            string            `json:"Description"`
+	VariableSetID          string            `json:"VariableSetId"`
+	LifecycleID            string            `json:"LifecycleId"`
+	ProjectGroupID         string            `json:"ProjectGroupId"`
+	DeploymentProcessID    string            `json:"DeploymentProcessId"`
+	TenantedDeploymentMode string            `json:"TenantedDeploymentMode"`
+	Links                  map[string]string `json:"Links"`
 }
 
 type octopusVariable struct {
@@ -177,34 +181,58 @@ func (op *octopipe) importOctopipeFile() {
 	}
 }
 
-func (v *octopusVariableSetScopeValues) getEnvironment(names string, ID string) (environmentID map[string][]string, environmentName string, err error) {
+func (v *octopusVariableSetScopeValues) makeScopeDataSet() (dataset map[string][]octopusVariableSetScopeValue) {
+	scmap := make(map[string][]octopusVariableSetScopeValue)
+	scmap["Environment"] = v.Environments
+	scmap["Machine"] = v.Machines
+	scmap["Role"] = v.Roles
+	scmap["TenantTag"] = v.TenantTags
+	scmap["Action"] = v.Actions
+	scmap["Channel"] = v.Channels
+
+	return scmap
+}
+
+func (v *octopusVariableSetScopeValues) getScope(dataset map[string][]octopusVariableSetScopeValue, names string, IDs []string, scopeType string) (scopeIDs []string, scopeNames []string, err error) {
 	if names != "" {
 		tnames := strings.Split(names, ",")
-		emap := make(map[string][]string)
-		environments := make([]string, 0)
+		scopes := make([]string, 0)
 
 		for _, name := range tnames {
 			found := false
-			for _, env := range v.Environments {
-				if env.Name == name {
-					environments = append(environments, env.ID)
-					found = true
+			for _, sc := range dataset[scopeType] {
+				if scopeType == "TenantTag" {
+					if sc.ID == name {
+						scopes = append(scopes, sc.ID)
+						found = true
+					}
+				} else {
+					if sc.Name == name {
+						scopes = append(scopes, sc.ID)
+						found = true
+					}
 				}
 			}
-
 			if !found {
-				return nil, "", errors.New("Environment with name " + name + " not found")
-			}
-			emap["Environment"] = environments
-			return emap, "", nil
-		}
-	} else if ID != "" {
-		for _, env := range v.Environments {
-			if env.ID == ID {
-				return nil, env.Name, nil
+				return nil, nil, errors.New("Scope value with name '" + name + "' not found")
 			}
 		}
+		return scopes, nil, nil
+	} else if IDs != nil {
+		names := make([]string, 0)
+		for _, ID := range IDs {
+			for _, sc := range dataset[scopeType] {
+				if sc.ID == ID {
+					if scopeType == "TenantTag" {
+						names = append(names, sc.ID)
+					} else {
+						names = append(names, sc.Name)
+					}
+				}
+			}
+		}
+		return nil, names, nil
 	}
 
-	return nil, "", errors.New("No names or Ids to process")
+	return nil, nil, errors.New("No names or Ids to process")
 }

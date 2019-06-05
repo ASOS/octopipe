@@ -20,8 +20,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+
+	"github.com/spf13/cobra"
 )
 
 // createCmd represents the create command
@@ -67,35 +68,47 @@ octopipe create -i My.Octopus.Project
 			tl, _ := getLifecycle(l, "", p.LifecycleID)
 			tg, _ := getProjectGroup(g, "", p.ProjectGroupID)
 
+			ds := v.ScopeValues.makeScopeDataSet()
+
 			// Variables
 			vss := []variable{}
-			exist := false
+
 			for _, vs := range v.Variables {
-				exist = false
-				tv := variable{}
-				for i, av := range vss {
-					if av.Name == vs.Name {
+				exist := false
+				for i, sv := range vss {
+					if sv.Name == vs.Name {
 						exist = true
-						senvs := ""
-						for _, es := range vs.Scope["Environment"] {
-							_, envName, _ := v.ScopeValues.getEnvironment("", es)
-							senvs = senvs + envName + ","
-						}
-						senvs = strings.TrimRight(senvs, ",")
-						if len(av.Values) == 0 {
-							av.Values = make(map[string]string)
-						}
-						av.Values[senvs] = vs.Value
-						av.Values["default"] = av.Value
-
-						nav := variable{
-							Values:      av.Values,
-							Name:        av.Name,
-							Type:        av.Type,
-							Description: av.Description,
+						tv := variable{}
+						tv.Name = vs.Name
+						tv.Description = vs.Description
+						if vs.Type != "String" {
+							tv.Type = vs.Type
 						}
 
-						vss[i] = nav
+						values := sv.ScopedValues
+
+						if vs.Scope != nil {
+							scvalue := make(map[string]string)
+							for sc, es := range vs.Scope {
+								_, scopeNames, _ := v.ScopeValues.getScope(ds, "", es, sc)
+								j := ""
+								for _, sc := range scopeNames {
+									j = j + sc + ","
+								}
+								j = strings.TrimRight(j, ",")
+								scvalue[sc] = j
+							}
+							scvalue["value"] = vs.Value
+							values = append(values, scvalue)
+						} else {
+							scvalue := make(map[string]string)
+							scvalue["value"] = vs.Value
+							values = append(values, scvalue)
+						}
+
+						tv.ScopedValues = values
+
+						vss[i] = tv
 
 						break
 					}
@@ -103,20 +116,29 @@ octopipe create -i My.Octopus.Project
 				if exist {
 					continue
 				}
+
+				tv := variable{}
 				tv.Name = vs.Name
 				tv.Description = vs.Description
-				tv.Type = vs.Type
+				if vs.Type != "String" {
+					tv.Type = vs.Type
+				}
 
 				if len(vs.Scope) != 0 {
-					values := make(map[string]string)
-					senvs := ""
-					for _, es := range vs.Scope["Environment"] {
-						_, envName, _ := v.ScopeValues.getEnvironment("", es)
-						senvs = senvs + envName + ","
+					values := make([]map[string]string, 0)
+					scvalue := make(map[string]string)
+					for sc, es := range vs.Scope {
+						_, scopeNames, _ := v.ScopeValues.getScope(ds, "", es, sc)
+						j := ""
+						for _, sc := range scopeNames {
+							j = j + sc + ","
+						}
+						j = strings.TrimRight(j, ",")
+						scvalue[sc] = j
 					}
-					senvs = strings.TrimRight(senvs, ",")
-					values[senvs] = vs.Value
-					tv.Values = values
+					scvalue["value"] = vs.Value
+					values = append(values, scvalue)
+					tv.ScopedValues = values
 				} else {
 					tv.Value = vs.Value
 				}
@@ -166,6 +188,7 @@ octopipe create -i My.Octopus.Project
 
 			op.Project.Name = p.Name
 			op.Project.Description = p.Description
+			op.Project.Tenanted = p.TenantedDeploymentMode
 			op.Project.Lifecycle = tl.Name
 			op.Project.ProjectGroup = tg.Name
 
@@ -196,13 +219,19 @@ octopipe create -i My.Octopus.Project
 			logAndExitf("octopipe.yaml already exists, will not overwrite")
 		}
 
-		values := make(map[string]string)
-		values["Dev"] = "aks-dev-rg"
-		values["Test"] = "aks-test-rg"
+		values := make([]map[string]string, 0)
+		values1 := make(map[string]string)
+		values2 := make(map[string]string)
+		values1["Environment"] = "Dev,Test"
+		values1["value"] = "aks-devtest-rg"
+		values2["Environment"] = "Production"
+		values2["Machine"] = "deploynode01"
+		values2["value"] = "aks-pd-rg"
+		values = append(values, values1, values2)
 
 		variables := make([]variable, 0)
 		variables = append(variables, variable{Name: "AksName", Value: "aks-01"})
-		variables = append(variables, variable{Name: "AksResourceGroupName", Values: values})
+		variables = append(variables, variable{Name: "AksResourceGroupName", ScopedValues: values})
 		variables = append(variables, variable{Name: "AzureUsername", Value: "user@github.com"})
 		variables = append(variables, variable{Name: "AzureTenantId", Value: "1234-5678-abcd-efgh"})
 		variables = append(variables, variable{Name: "variable3", Value: "octopusdeploy-account", Type: "AzureAccount", Description: "Account used for deployments"})
@@ -217,6 +246,7 @@ octopipe create -i My.Octopus.Project
 				Description:  "My Octopus Project",
 				ProjectGroup: "Octopus Project Group",
 				Lifecycle:    "OctopusProject.Lifecycle",
+				Tenanted:     "TenantedOrUntenanted",
 			},
 			Variables: variables,
 			Process: process{
@@ -225,11 +255,11 @@ octopipe create -i My.Octopus.Project
 		}
 
 		inits := `$credential = New-Object PSCredential -ArgumentList @("#{AzureUsername}", ("#{AzurePassword}" | ConvertTo-SecureString -Force -AsPlainText))
-Login-AzAccount -ServicePrincipal -Tenant "#{AzureTenantId}" -Credential $credential
-`
+			Login-AzAccount -ServicePrincipal -Tenant "#{AzureTenantId}" -Credential $credential
+			`
 		deps := `az aks create -g "#{AksResourceGroupName}" -n "#{AksName}" --node-count 5
-$cluster = az aks show -n "#{AksName}" -g "#{AksResourceGroupName}" | ConvertFrom-Json
-Write-Host $cluster.Status`
+			$cluster = az aks show -n "#{AksName}" -g "#{AksResourceGroupName}" | ConvertFrom-Json
+			Write-Host $cluster.Status`
 
 		_, err := os.Stat("scripts")
 		if os.IsNotExist(err) {

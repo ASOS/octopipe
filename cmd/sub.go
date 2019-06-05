@@ -47,23 +47,33 @@ octopipe sub -c -f deploystep1.ps1,deploystep2.ps1 scripts/ DevTest
 		co, _ := cmd.Flags().GetBool("check-only")
 		fo, _ := cmd.Flags().GetString("filenames")
 		sdir := args[0]
-		env := args[1]
+		scopes := args[1]
 
 		var op octopipe
 		op.importOctopipeFile()
+
+		asc := strings.Split(scopes, ",")
+		sc := make(map[string]string)
+		for _, tsc := range asc {
+			tssc := strings.Split(tsc, "=")
+			sc[tssc[0]] = tssc[1]
+		}
 
 		vmap := make(map[string]string)
 		for _, thisv := range op.Variables {
 			if thisv.Value != "" {
 				vmap[thisv.Name] = thisv.Value
-			} else if thisv.Values["default"] != "" {
-				vmap[thisv.Name] = thisv.Values["default"]
-			} else {
-				for i := range thisv.Values {
-					is := strings.Split(i, ",")
-					for _, s := range is {
-						if s == env {
-							vmap[thisv.Name] = thisv.Values[i]
+			} else if thisv.ScopedValues != nil {
+				for i, rsc := range sc {
+					for _, scv := range thisv.ScopedValues {
+						if len(scv) == 1 {
+							if vmap[thisv.Name] == "" {
+								vmap[thisv.Name] = scv["value"]
+							}
+						}
+						regsc, _ := regexp.Match(rsc, []byte(scv[i]))
+						if regsc {
+							vmap[thisv.Name] = scv["value"]
 						}
 					}
 				}
@@ -147,6 +157,7 @@ octopipe sub -c -f deploystep1.ps1,deploystep2.ps1 scripts/ DevTest
 				}
 			}
 		}
+
 	},
 }
 
